@@ -12,7 +12,9 @@ const users = [
 ];
 
 // נתונים זמניים בזיכרון
-let formData = {};
+let formData = {}; // נתוני הטופס
+let reports = []; // רשימת דוחות שהופקו
+let editorContent = ""; // תוכן תיבת עריכת דוח
 
 // נתיב התחברות
 app.post("/login", (req, res) => {
@@ -30,32 +32,59 @@ app.post("/login", (req, res) => {
   }
 });
 
-// נתיב שמירת נתונים
+// נתיב שמירת נתונים מהטופס
 app.post("/save-data", (req, res) => {
   console.log("נתונים שהתקבלו לשמירה:", req.body);
   formData = req.body;
   res.send({ message: "נתונים נשמרו בהצלחה!", formData });
 });
 
-// נתיב שליפת נתונים
+// נתיב שליפת נתוני הטופס
 app.get("/get-data", (req, res) => {
   console.log("בקשה לשליפת נתונים התקבלה");
   res.send(formData || {});
 });
 
-// נתיב מחיקת נתונים
+// נתיב מחיקת נתונים מהטופס
 app.delete("/clear-data", (req, res) => {
   console.log("בקשה למחיקת נתונים התקבלה");
   formData = {};
   res.send({ message: "כל הנתונים נמחקו בהצלחה!" });
 });
 
-// הפעלת השרת
-const PORT = 3000;
-// נתיב ברירת מחדל לנתיב /
+// נתיב לשמירת דוח
+app.post("/save-report", (req, res) => {
+  console.log("דוח שהתקבל:", req.body.report);
+  reports.push(req.body.report);
+  res.send({ message: "הדוח נשמר בהצלחה!" });
+});
+
+// נתיב לשליפת רשימת דוחות
+app.get("/get-reports", (req, res) => {
+  console.log("בקשה לשליפת דוחות התקבלה");
+  res.send(reports);
+});
+
+// נתיב לשמירת תוכן תיבת "עריכת דוח"
+app.post("/save-editor-content", (req, res) => {
+  editorContent = req.body.editorContent || "";
+  console.log("תוכן תיבת עריכת דוח נשמר:", editorContent);
+  res.send({ message: "תוכן העריכה נשמר בהצלחה!" });
+});
+
+// נתיב לשליפת תוכן תיבת "עריכת דוח"
+app.get("/get-editor-content", (req, res) => {
+  console.log("בקשה לשליפת תוכן תיבת עריכת דוח התקבלה");
+  res.send({ editorContent });
+});
+
+// נתיב ברירת מחדל
 app.get("/", (req, res) => {
   res.send("Server is running!");
 });
+
+// הפעלת השרת
+const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

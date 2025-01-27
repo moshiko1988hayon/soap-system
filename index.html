@@ -62,10 +62,12 @@
 
   <div id="dashboardPage" class="hidden">
     <h1>ניהול דוחות SOAP</h1>
+
     <div class="identifier">
       <label>מספר מזהה (לא ייכנס לדוח):</label>
       <input type="text" id="identifier" placeholder="הקלד מספר מזהה">
     </div>
+
     <form id="reportForm">
       <label>תלונה עיקרית:</label>
       <textarea id="chiefComplaint" rows="3"></textarea>
@@ -158,10 +160,35 @@
   <script>
     const SERVER_URL = "https://soap-system.onrender.com";
 
+    async function login() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const response = await fetch(`${SERVER_URL}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+
+        if (response.ok) {
+          document.getElementById("loginPage").classList.add("hidden");
+          document.getElementById("dashboardPage").classList.remove("hidden");
+        } else {
+          document.getElementById("loginError").style.display = "block";
+        }
+      } catch (error) {
+        console.error("שגיאה בהתחברות:", error);
+        alert("שגיאה בהתחברות.");
+      }
+    }
+
     async function saveDataToServer() {
       const formData = {};
       Array.from(document.querySelectorAll("#reportForm input, #reportForm textarea, #reportForm select")).forEach(input => {
-        formData[input.id] = input.value;
+        if (input.id) {
+          formData[input.id] = input.value;
+        }
       });
 
       try {
@@ -186,9 +213,10 @@
           const data = await response.json();
           Object.keys(data).forEach(key => {
             const input = document.getElementById(key);
-            if (input) input.value = data[key];
+            if (input) {
+              input.value = data[key] || "";
+            }
           });
-          console.log("נתונים נטענו בהצלחה!");
         } else {
           console.error("שגיאה בטעינת הנתונים.");
         }
@@ -197,11 +225,153 @@
       }
     }
 
+    async function saveReportToServer(report) {
+      try {
+        const response = await fetch(`${SERVER_URL}/save-report`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ report }),
+        });
+
+        if (!response.ok) {
+          throw new Error("שגיאה בשמירת הדוח.");
+        }
+      } catch (error) {
+        console.error("שגיאה בשמירת הדוח:", error);
+      }
+    }
+
+    async function loadEditorContent() {
+      try {
+        const response = await fetch(`${SERVER_URL}/get-editor-content`);
+        if (response.ok) {
+          const data = await response.json();
+          document.getElementById("editor").value = data.editorContent || "";
+        } else {
+          throw new Error("שגיאה בטעינת תוכן העריכה.");
+        }
+      } catch (error) {
+        console.error("שגיאה בטעינת תוכן העריכה:", error);
+      }
+    }
+
     document.querySelectorAll("#reportForm input, #reportForm textarea, #reportForm select").forEach(input => {
       input.addEventListener("input", saveDataToServer);
     });
 
-    window.onload = loadDataFromServer;
+    document.getElementById("editor").addEventListener("input", saveDataToServer);
+
+    window.onload = () => {
+      loadDataFromServer();
+      loadEditorContent();
+    };
+
+    function generateReport() {
+      const header = `
+הפק דוח SOAP מקצועי ורציף מהנתונים המופיעים מטה:
+- סעיף S המסכם תלונות והיסטוריה רפואית.
+- סעיף O עם פירוט מלא של ממצאים קליניים ומעבדתיים שלא תקינים.
+- סעיף A המנתח את הממצאים הרפואיים.
+- סעיף P הכולל תוכנית טיפול מפורטת וברורה עם נקודות.
+      `;
+
+      const reportData = {};
+      Array.from(document.querySelectorAll("#reportForm input, #reportForm textarea, #reportForm select")).forEach(input => {
+        reportData[input.id] = input.value;
+      });
+
+      const report = `
+${header}
+
+תלונה עיקרית: ${reportData.chiefComplaint || ""}
+מאפייני התסמינים: ${reportData.symptomCharacteristics || ""}
+משך זמן התסמין/ים: ${reportData.symptomDuration || ""}
+רמת כאב: ${reportData.painLevel || ""}
+האם חווית תסמינים דומים בעבר: ${reportData.similarSymptoms || ""}
+האם יש קשר בין הופעת התסמינים לאירועים מסוימים: ${reportData.symptomTriggers || ""}
+האם קיימת היסטוריה משפחתית: ${reportData.familyHistory || ""}
+מעשן: ${reportData.smoker || ""}
+צורך אלכוהול: ${reportData.alcohol || ""}
+תרופות קבועות: ${reportData.medications || ""}
+אלרגיות: ${reportData.allergies || ""}
+ממצאים בבדיקה קלינית: ${reportData.clinicalFindings || ""}
+חום: ${reportData.temperature || ""}
+לחץ דם: ${reportData.bloodPressure || ""}
+דופק: ${reportData.pulse || ""}
+סטורציה: ${reportData.saturation || ""}
+תוצאות בדיקות מעבדה: ${reportData.labResults || ""}
+תוצאות סטיק שתן: ${reportData.urineStickResults || ""}
+תוצאות אק״ג: ${reportData.ecgResults || ""}
+תוצאות תרביות: ${reportData.cultureResults || ""}
+תוצאות דימות: ${reportData.imagingResults || ""}
+      `;
+
+  document.getElementById("output").innerText = report;
+      document.getElementById("copyButton").classList.remove("hidden");
+
+      saveReportToServer(report); // שמירת הדוח לשרת
+    }
+
+    // פונקציה לשמירת דוח לשרת
+    async function saveReportToServer(report) {
+      try {
+        const response = await fetch(`${SERVER_URL}/save-report`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ report }),
+        });
+
+        if (!response.ok) {
+          throw new Error("שגיאה בשמירת הדוח.");
+        }
+      } catch (error) {
+        console.error("שגיאה בשמירת הדוח:", error);
+      }
+    }
+
+    function copyReport() {
+      const reportText = document.getElementById("output").innerText;
+      navigator.clipboard.writeText(reportText).then(() => {
+        alert("הדוח הועתק ללוח!");
+      }).catch(err => {
+        alert("שגיאה בהעתקת הדוח: " + err);
+      });
+    }
+
+    function clearAllData() {
+      document.getElementById("reportForm").reset();
+      document.getElementById("output").innerText = "";
+      document.getElementById("editor").value = "";
+      alert("כל הנתונים נמחקו בהצלחה!");
+    }
+
+    async function loadEditorContent() {
+      try {
+        const response = await fetch(`${SERVER_URL}/get-editor-content`);
+        if (response.ok) {
+          const data = await response.json();
+          document.getElementById("editor").value = data.editorContent || "";
+        } else {
+          throw new Error("שגיאה בטעינת תוכן העריכה.");
+        }
+      } catch (error) {
+        console.error("שגיאה בטעינת תוכן העריכה:", error);
+      }
+    }
+
+    // Listener לשמירת נתונים בתיבת "עריכת דוח"
+    document.getElementById("editor").addEventListener("input", saveDataToServer);
+
+    // Listener לשמירת נתונים בכל שינוי בטופס
+    document.querySelectorAll("#reportForm input, #reportForm textarea, #reportForm select").forEach(input => {
+      input.addEventListener("input", saveDataToServer);
+    });
+
+    // הפעלת טעינת נתונים מהשרת בעת פתיחת הדף
+    window.onload = () => {
+      loadDataFromServer();
+      loadEditorContent();
+    };
   </script>
 </body>
 </html>
