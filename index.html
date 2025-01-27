@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ניהול דוחות SOAP</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    label, input, textarea, button, select {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .hidden {
+      display: none;
+    }
+    .output {
+      margin-top: 20px;
+      background-color: #f9f9f9;
+      padding: 10px;
+      border: 1px solid #ddd;
+    }
+    .editor-container {
+      margin-top: 30px;
+      background-color: #f9f9f9;
+      padding: 10px;
+      border: 1px solid #ddd;
+    }
+    .buttons-container {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .header-button {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- עמוד כניסה -->
+  <div id="loginPage">
+    <h1>כניסה למערכת</h1>
+    <label>שם משתמש:</label>
+    <input type="text" id="username" placeholder="הכנס שם משתמש">
+    <label>סיסמה:</label>
+    <input type="password" id="password" placeholder="הכנס סיסמה">
+    <button onclick="login()">התחבר</button>
+    <p id="loginError" style="color: red; display: none;">שם משתמש או סיסמה שגויים</p>
+  </div>
+
+  <!-- עמוד דוחות -->
+  <div id="dashboardPage" class="hidden">
+    <h1>ניהול דוחות SOAP</h1>
+
+    <div class="identifier">
+      <label>מספר מזהה (לא ייכנס לדוח):</label>
+      <input type="text" id="identifier" placeholder="הקלד מספר מזהה">
+    </div>
+
+    <form id="reportForm">
+      <label>תלונה עיקרית:</label>
+      <textarea id="chiefComplaint" rows="3"></textarea>
+
+      <label>מאפייני התסמינים:</label>
+      <textarea id="symptomCharacteristics" rows="3"></textarea>
+
+      <label>משך זמן התסמין/ים:</label>
+      <input type="text" id="symptomDuration">
+
+      <label>רמת כאב (מ-1 עד 10):</label>
+      <input type="number" id="painLevel" min="1" max="10">
+
+      <label>האם חווית תסמינים דומים בעבר:</label>
+      <input type="text" id="similarSymptoms">
+
+      <label>האם יש קשר בין הופעת התסמינים לאירועים מסוימים:</label>
+      <input type="text" id="symptomTriggers">
+
+      <label>האם קיימת היסטוריה משפחתית:</label>
+      <textarea id="familyHistory" rows="2"></textarea>
+
+      <label>מעשן:</label>
+      <select id="smoker">
+        <option value="כן">כן</option>
+        <option value="לא">לא</option>
+      </select>
+
+      <label>צורך אלכוהול:</label>
+      <select id="alcohol">
+        <option value="לא">לא</option>
+        <option value="כן - פעם בשבוע">כן - פעם בשבוע</option>
+        <option value="כן - עד פעמיים בשבוע">כן - עד פעמיים בשבוע</option>
+        <option value="כן - עד שלוש פעמים בשבוע">כן - עד שלוש פעמים בשבוע</option>
+        <option value="כן - מעל שלוש פעמים בשבוע">כן - מעל שלוש פעמים בשבוע</option>
+      </select>
+
+      <label>תרופות קבועות:</label>
+      <textarea id="medications" rows="2"></textarea>
+
+      <label>אלרגיות:</label>
+      <textarea id="allergies" rows="2"></textarea>
+
+      <label>ממצאים בבדיקה קלינית:</label>
+      <textarea id="clinicalFindings" rows="3"></textarea>
+
+      <label>חום:</label>
+      <input type="text" id="temperature">
+
+      <label>לחץ דם:</label>
+      <input type="text" id="bloodPressure">
+
+      <label>דופק:</label>
+      <input type="text" id="pulse">
+
+      <label>סטורציה:</label>
+      <input type="text" id="saturation">
+
+      <label>תוצאות בדיקות מעבדה:</label>
+      <textarea id="labResults" rows="3"></textarea>
+
+      <label>תוצאות סטיק שתן:</label>
+      <textarea id="urineStickResults" rows="3"></textarea>
+
+      <label>תוצאות אק״ג:</label>
+      <textarea id="ecgResults" rows="2"></textarea>
+
+      <label>תוצאות תרביות:</label>
+      <textarea id="cultureResults" rows="3"></textarea>
+
+      <label>תוצאות דימות:</label>
+      <textarea id="imagingResults" rows="3"></textarea>
+
+      <div class="buttons-container">
+        <button type="button" onclick="generateReport()">הפק דוח</button>
+        <button type="button" id="copyButton" class="hidden" onclick="copyReport()">העתק דוח</button>
+      </div>
+    </form>
+
+    <div class="output" id="output"></div>
+
+    <div class="editor-container">
+      <h2>עריכת דוח</h2>
+      <textarea id="editor" rows="10" placeholder="הקלד או ערוך כאן את הדוח..."></textarea>
+    </div>
+
+    <button class="header-button" onclick="clearAllData()">מחק את כל הנתונים</button>
+  </div>
+
+  <script>
+    const SERVER_URL = "http://localhost:3000";
+
+    async function login() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const response = await fetch(`${SERVER_URL}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+
+        if (response.ok) {
+          document.getElementById("loginPage").classList.add("hidden");
+          document.getElementById("dashboardPage").classList.remove("hidden");
+        } else {
+          document.getElementById("loginError").style.display = "block";
+        }
+      } catch (error) {
+        console.error("שגיאה בהתחברות:", error);
+        alert("שגיאה בהתחברות.");
+      }
+    }
+
+    function generateReport() {
+      const header = `
+הפק דוח SOAP מקצועי ורציף מהנתונים המופיעים מטה:
+- סעיף S המסכם תלונות והיסטוריה רפואית.
+- סעיף O עם פירוט מלא של ממצאים קליניים ומעבדתיים שלא תקינים.
+- סעיף A המנתח את הממצאים הרפואיים.
+- סעיף P תוכנית טיפול מפורטת הכוללת תרופות, מינונים והמלצות מקצועיות.
+
+דגשים:
+- המידע ייכתב בשפה מקצועית, ברצף ברור וללא חזרתיות.
+- המידע יכלול נתונים מסודרים הנוגעים למצב הרפואי.
+      `;
+
+      const reportData = {};
+      Array.from(document.querySelectorAll("#reportForm input, #reportForm textarea, #reportForm select")).forEach(input => {
+        reportData[input.id] = input.value;
+      });
+
+      const report = `
+${header}
+
+תלונה עיקרית: ${reportData.chiefComplaint || ""}
+מאפייני התסמינים: ${reportData.symptomCharacteristics || ""}
+משך זמן התסמין/ים: ${reportData.symptomDuration || ""}
+רמת כאב: ${reportData.painLevel || ""}
+האם חווית תסמינים דומים בעבר: ${reportData.similarSymptoms || ""}
+האם יש קשר בין הופעת התסמינים לאירועים מסוימים: ${reportData.symptomTriggers || ""}
+האם קיימת היסטוריה משפחתית: ${reportData.familyHistory || ""}
+מעשן: ${reportData.smoker || ""}
+צורך אלכוהול: ${reportData.alcohol || ""}
+תרופות קבועות: ${reportData.medications || ""}
+אלרגיות: ${reportData.allergies || ""}
+ממצאים בבדיקה קלינית: ${reportData.clinicalFindings || ""}
+חום: ${reportData.temperature || ""}
+לחץ דם: ${reportData.bloodPressure || ""}
+דופק: ${reportData.pulse || ""}
+סטורציה: ${reportData.saturation || ""}
+תוצאות בדיקות מעבדה: ${reportData.labResults || ""}
+תוצאות סטיק שתן: ${reportData.urineStickResults || ""}
+תוצאות אק״ג: ${reportData.ecgResults || ""}
+תוצאות תרביות: ${reportData.cultureResults || ""}
+תוצאות דימות: ${reportData.imagingResults || ""}
+      `;
+
+      document.getElementById("output").innerText = report;
+      document.getElementById("copyButton").classList.remove("hidden");
+    }
+
+    function copyReport() {
+      const reportText = document.getElementById("output").innerText;
+      navigator.clipboard.writeText(reportText).then(() => {
+        alert("הדוח הועתק ללוח!");
+      }).catch(err => {
+        alert("שגיאה בהעתקת הדוח: " + err);
+      });
+    }
+
+    function clearAllData() {
+      document.getElementById("reportForm").reset();
+      document.getElementById("output").innerText = "";
+      document.getElementById("editor").value = "";
+      alert("כל הנתונים נמחקו בהצלחה!");
+    }
+  </script>
+</body>
+</html>
