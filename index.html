@@ -50,7 +50,6 @@
   </style>
 </head>
 <body>
-  <!-- עמוד כניסה -->
   <div id="loginPage">
     <h1>כניסה למערכת</h1>
     <label>שם משתמש:</label>
@@ -61,15 +60,12 @@
     <p id="loginError" style="color: red; display: none;">שם משתמש או סיסמה שגויים</p>
   </div>
 
-  <!-- עמוד דוחות -->
   <div id="dashboardPage" class="hidden">
     <h1>ניהול דוחות SOAP</h1>
-
     <div class="identifier">
       <label>מספר מזהה (לא ייכנס לדוח):</label>
       <input type="text" id="identifier" placeholder="הקלד מספר מזהה">
     </div>
-
     <form id="reportForm">
       <label>תלונה עיקרית:</label>
       <textarea id="chiefComplaint" rows="3"></textarea>
@@ -160,94 +156,52 @@
   </div>
 
   <script>
-    const SERVER_URL = "http://localhost:3000";
+    const SERVER_URL = "https://soap-system.onrender.com";
 
-    async function login() {
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
+    async function saveDataToServer() {
+      const formData = {};
+      Array.from(document.querySelectorAll("#reportForm input, #reportForm textarea, #reportForm select")).forEach(input => {
+        formData[input.id] = input.value;
+      });
 
       try {
-        const response = await fetch(`${SERVER_URL}/login`, {
+        const response = await fetch(`${SERVER_URL}/save-data`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
+          body: JSON.stringify(formData),
         });
 
-        if (response.ok) {
-          document.getElementById("loginPage").classList.add("hidden");
-          document.getElementById("dashboardPage").classList.remove("hidden");
-        } else {
-          document.getElementById("loginError").style.display = "block";
+        if (!response.ok) {
+          throw new Error("שגיאה בשמירת הנתונים.");
         }
       } catch (error) {
-        console.error("שגיאה בהתחברות:", error);
-        alert("שגיאה בהתחברות.");
+        console.error("שגיאה בשמירת הנתונים:", error);
       }
     }
 
-    function generateReport() {
-      const header = `
-הפק דוח SOAP מקצועי ורציף מהנתונים המופיעים מטה:
-- סעיף S המסכם תלונות והיסטוריה רפואית.
-- סעיף O עם פירוט מלא של ממצאים קליניים ומעבדתיים שלא תקינים.
-- סעיף A המנתח את הממצאים הרפואיים.
-- סעיף P תוכנית טיפול מפורטת הכוללת תרופות, מינונים והמלצות מקצועיות.
-
-דגשים:
-- המידע ייכתב בשפה מקצועית, ברצף ברור וללא חזרתיות.
-- המידע יכלול נתונים מסודרים הנוגעים למצב הרפואי.
-      `;
-
-      const reportData = {};
-      Array.from(document.querySelectorAll("#reportForm input, #reportForm textarea, #reportForm select")).forEach(input => {
-        reportData[input.id] = input.value;
-      });
-
-      const report = `
-${header}
-
-תלונה עיקרית: ${reportData.chiefComplaint || ""}
-מאפייני התסמינים: ${reportData.symptomCharacteristics || ""}
-משך זמן התסמין/ים: ${reportData.symptomDuration || ""}
-רמת כאב: ${reportData.painLevel || ""}
-האם חווית תסמינים דומים בעבר: ${reportData.similarSymptoms || ""}
-האם יש קשר בין הופעת התסמינים לאירועים מסוימים: ${reportData.symptomTriggers || ""}
-האם קיימת היסטוריה משפחתית: ${reportData.familyHistory || ""}
-מעשן: ${reportData.smoker || ""}
-צורך אלכוהול: ${reportData.alcohol || ""}
-תרופות קבועות: ${reportData.medications || ""}
-אלרגיות: ${reportData.allergies || ""}
-ממצאים בבדיקה קלינית: ${reportData.clinicalFindings || ""}
-חום: ${reportData.temperature || ""}
-לחץ דם: ${reportData.bloodPressure || ""}
-דופק: ${reportData.pulse || ""}
-סטורציה: ${reportData.saturation || ""}
-תוצאות בדיקות מעבדה: ${reportData.labResults || ""}
-תוצאות סטיק שתן: ${reportData.urineStickResults || ""}
-תוצאות אק״ג: ${reportData.ecgResults || ""}
-תוצאות תרביות: ${reportData.cultureResults || ""}
-תוצאות דימות: ${reportData.imagingResults || ""}
-      `;
-
-      document.getElementById("output").innerText = report;
-      document.getElementById("copyButton").classList.remove("hidden");
+    async function loadDataFromServer() {
+      try {
+        const response = await fetch(`${SERVER_URL}/get-data`);
+        if (response.ok) {
+          const data = await response.json();
+          Object.keys(data).forEach(key => {
+            const input = document.getElementById(key);
+            if (input) input.value = data[key];
+          });
+          console.log("נתונים נטענו בהצלחה!");
+        } else {
+          console.error("שגיאה בטעינת הנתונים.");
+        }
+      } catch (error) {
+        console.error("שגיאה בטעינת הנתונים:", error);
+      }
     }
 
-    function copyReport() {
-      const reportText = document.getElementById("output").innerText;
-      navigator.clipboard.writeText(reportText).then(() => {
-        alert("הדוח הועתק ללוח!");
-      }).catch(err => {
-        alert("שגיאה בהעתקת הדוח: " + err);
-      });
-    }
+    document.querySelectorAll("#reportForm input, #reportForm textarea, #reportForm select").forEach(input => {
+      input.addEventListener("input", saveDataToServer);
+    });
 
-    function clearAllData() {
-      document.getElementById("reportForm").reset();
-      document.getElementById("output").innerText = "";
-      document.getElementById("editor").value = "";
-      alert("כל הנתונים נמחקו בהצלחה!");
-    }
+    window.onload = loadDataFromServer;
   </script>
 </body>
 </html>

@@ -52,6 +52,10 @@ app.delete("/clear-data", (req, res) => {
 
 // הפעלת השרת
 const PORT = 3000;
+// נתיב ברירת מחדל לנתיב /
+app.get("/", (req, res) => {
+  res.send("Server is running!");
+});
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
